@@ -1,0 +1,66 @@
+---
+
+- hosts: all
+  tasks:
+
+      - name: Install EPEL-Release
+        become: true
+        yum:
+          name: epel-release
+          state: present
+
+      - name: Install Redis Server
+        become: true
+        yum: 
+          name: redis
+          state: present
+
+      - name: Install NVM
+        shell: curl https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
+        args:
+          warn: false
+
+      - name: Install Node (stable)
+        shell: '. {{ansible_env.HOME }}/.nvm/nvm.sh && nvm install stable'
+        args: 
+          creates: "{{ ansible_env.HOME }}/.nvm/version/node"
+          chdir: "{{ ansible_env.HOME }}"
+          executable: /bin/bash
+
+      - name: Install NPM packages
+        npm: 
+          name: "{{ item }}" 
+          global: true
+        loop: 
+            - yo
+            - generator-hubot 
+            - coffee-script
+            - cheerio 
+            - hubot-terraform
+
+      - name: Start Redis and enable it
+        become: true
+        service:
+          name: redis
+          enabled: true
+
+      - name: Create hubot user
+        become: true
+        user: 
+          name: hubot
+          comment: Service group for Hubot
+          group: vagrant
+
+      - name: Create hubot directory
+        become: true
+        file: 
+          path: /opt/hubot
+          owner: hubot
+          group: vagrant
+          state: directory
+          mode: 0777
+
+      - name: Install hubot!
+        shell:
+          cmd: yo hubot --adapter hipchat --name="yourbot" --owner="email@domain.com" --description="$DESCRIPTION" --no-insight
+          chdir: /opt/hubot
